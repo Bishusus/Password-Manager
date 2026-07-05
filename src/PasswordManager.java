@@ -1,21 +1,34 @@
 import java.util.Scanner;
 
+/**
+ * The middle coordinator class. Tries to match console interactions from Main
+ * down to database commands and execution tasks.
+ */
 public class PasswordManager {
     public DatabaseSQL database;
     Scanner sc;
     private EncryptionManager encryption;
 
+    /**
+     * Hooks up a database instance and sets up a standard input reader.
+     */
     public PasswordManager() {
         database = new DatabaseSQL();
         sc = new Scanner(System.in);
     }
 
+    /**
+     * Attaches the authenticated encryption instance to the manager layer.
+     */
     public void setEncryptionManager(EncryptionManager encryption) {
         this.encryption = encryption;
     }
 
+    /**
+     * Normalizes the topic tag, encrypts the password, and inserts the fresh row to the database.
+     */
     public void addEntry (String topic, String username, String password) {
-        topic = topic.toLowerCase();
+        topic = topic.toLowerCase(); // Forces everything lowercase so lookups aren't case-sensitive
         EncryptedPassword password1 = encryption.encrypt(password);
         String iv = password1.iv();
         PasswordEntry entry = new PasswordEntry(topic, username, password1.encryptedPassword(), iv);
@@ -29,8 +42,14 @@ public class PasswordManager {
 
     }
 
+    /**
+     * Finds a single password row matching a given topic.
+     */
     public PasswordEntry findEntry(String topic) { return database.findByTitle(topic.toLowerCase()); }
 
+    /**
+     * Manages the text menus when editing fields (topic name, username, or raw password values).
+     */
     public void editEntry(String topic) {
         PasswordEntry entry = findEntry(topic);
         if (entry != null) {
@@ -62,6 +81,7 @@ public class PasswordManager {
                 case 3:
                     System.out.print("Enter your new password: ");
                     String newPassword = sc.nextLine();
+                    // Encrypt the brand new password securely and grab a new IV tracking value along with it
                     EncryptedPassword password1 = encryption.encrypt(newPassword);
                     entry.setPassword(password1.encryptedPassword());
                     entry.setIv(password1.iv());
@@ -81,6 +101,9 @@ public class PasswordManager {
         }
     }
 
+    /**
+     * Asks for confirmation before wiping out an entry row from the database.
+     */
     public void deleteEntry(String topic) {
         PasswordEntry entry = findEntry(topic);
         if (entry != null) {
@@ -96,7 +119,4 @@ public class PasswordManager {
             else System.out.println("Invalid choice.");
         }
     }
-
-
-
 }

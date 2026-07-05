@@ -1,3 +1,6 @@
+/**
+ * A standard data object that models a single password entry row from the database.
+ */
 public class PasswordEntry {
 
     private String topic;
@@ -5,6 +8,9 @@ public class PasswordEntry {
     private String password;
     private String iv;
 
+    /**
+     * Creates a structured entry containing the site topic, username, encrypted password, and cipher IV.
+     */
     public PasswordEntry(String topic, String username, String password, String iv) {
         this.topic = topic;
         this.username = username;

@@ -3,14 +3,24 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Scanner;
 
+/**
+ * The main entry point for the password manager.
+ * This class handles the command-line interface menu loops, processes what the user types,
+ * and passes those requests down to the database and encryption systems.
+ */
 public class Main {
 
+    /**
+     * Starts the application, checks if a master password exists, handles the
+     * login/registration phase, and boots up the main CRUD menu loop.
+     */
     public static void main(String[] args) {
 
         Scanner sc = new Scanner(System.in);
         PasswordManager manager = new PasswordManager();
 
         boolean running = true;
+        // First-time setup check: If no master account exists, force them to create one
         if (!manager.database.isRegistered()) {
             System.out.println("\n===== Welcome to Password Manager ======\n");
             System.out.println("1. Create master password");
@@ -28,17 +38,21 @@ public class Main {
                         System.out.print("Confirm the new master password: ");
                         String confirmPassword = sc.nextLine();
                         if (password.equals(confirmPassword)) {
+                            // Generate a fresh key, random salt, and capture the iteration settings
                             EncryptionManager encryption = new EncryptionManager(password);
                             SecretKey secretKey = encryption.getSecretKey();
                             byte[] salt = encryption.getSalt();
                             int iterations = encryption.getIterations();
+
+                            // Turn the raw byte arrays into text so we can save them cleanly in MySQL
                             String encodedKey = Base64.getEncoder().encodeToString(secretKey.getEncoded());
                             String encodedSalt = Base64.getEncoder().encodeToString(salt);
+
                             manager.database.saveMasterAuth(encodedSalt, encodedKey, iterations);
                             System.out.println("Master password created successfully.");
                             break;
                         } else {
-                                System.out.println("Passwords do not match!");
+                            System.out.println("Passwords do not match!");
                         }
                     }
                     break;
@@ -56,6 +70,7 @@ public class Main {
 
         EncryptionManager encryption;
 
+        // Login Loop: Keeps asking for the master password until it matches
         while (true) {
             System.out.println("\n===== Welcome to Password Manager =====\n");
             System.out.print("Enter the master password: ");
@@ -63,9 +78,13 @@ public class Main {
             MasterAuth master = manager.database.loadMasterAuth();
             byte[] decodedSalt = Base64.getDecoder().decode(master.salt());
             String encodedKey = master.verifier();
+
+            // Re-derive the key using the password they just typed and the salt we saved earlier
             encryption = new EncryptionManager(master_password, decodedSalt);
             SecretKey secretKey = encryption.getSecretKey();
             String encodedKey2 = Base64.getEncoder().encodeToString(secretKey.getEncoded());
+
+            // If the newly generated key matches the one on file, they are authenticated
             if (encodedKey.equals(encodedKey2)) {
                 manager.setEncryptionManager(encryption);
                 break;
@@ -74,6 +93,7 @@ public class Main {
             }
         }
 
+        // Core App Loop: Handles the actual CRUD interactions once logged in
         while (running) {
 
             System.out.println("\n===== Password Manager =====\n");
@@ -110,6 +130,7 @@ public class Main {
                     System.out.println();
                     if (!entries.isEmpty()) {
                         for (PasswordEntry entry : entries) {
+                            // Pull the encrypted password and its unique IV, decrypt it on the fly to display it
                             String decryptedPassword = encryption.decrypt(entry.getPassword(), entry.getIv());
                             System.out.println("Topic: " + entry.getTopic() + "\n" +
                                     "Username: " + entry.getUsername() + "\n"
